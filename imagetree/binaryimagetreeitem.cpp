@@ -29,13 +29,12 @@
 #include <itkRecursiveGaussianImageFilter.h>
 #include <itkCannyEdgeDetectionImageFilter.h>
 #include <itkCastImageFilter.h>
-//#include <itkSliceBySliceImageFilter.h>
 
 #include <QMessageBox>
 
 // Constructor, which takes its parent, an Image and a name
 BinaryImageTreeItem::BinaryImageTreeItem(TreeItem * parent, ImageType::Pointer itkImage, const QString &name)
-  :BaseClass(parent, itkImage), name(name), volumeMtime(0) {
+  :BaseClass(parent, itkImage), name(name), volumeMtime(0), binarySphereGroup(GroupType::New()) {
     imageKeeper = getVTKConnector();
     createRandomColor();
 }
@@ -88,7 +87,54 @@ inline T clip(T min, T val, T max) {
 
 //draws a sphere with a given radius at a specific position (or erases it)
 void BinaryImageTreeItem::drawSphere( float radius, float x, float y, float z, bool erase ) {
-	//define index and create point at position (x,y,z)
+
+	SpatialObjectToImageFilterType::Pointer binaryImageFilter =
+		SpatialObjectToImageFilterType::New();
+
+	itk::ContinuousIndex< double, ImageDimension > idx;
+	ImageType::PointType point;
+	point[0] = x;point[1] = y;point[2] = z;
+	//get ITK image
+	ImageType::Pointer itkIm = getITKImage();
+	if (itkIm.IsNull()) 
+		return;
+	//transform point to an index
+	itkIm->TransformPhysicalPointToContinuousIndex(point, idx);
+	//get spacing and size of the image
+	ImageType::SpacingType spacing = itkIm->GetSpacing();
+	ImageType::SizeType size = itkIm->GetBufferedRegion().GetSize();
+
+	binaryImageFilter->SetSize(size);
+	binaryImageFilter->SetSpacing(spacing);
+
+	EllipseType::Pointer sphere = EllipseType::New();
+	sphere->SetRadius( radius );
+
+	typedef GroupType::TransformType TransformType;
+	TransformType::Pointer transform = TransformType::New();
+
+	transform->SetIdentity();
+	transform->SetCenter(idx);
+	
+	sphere->SetObjectToParentTransform( transform );
+
+	binarySphereGroup->AddSpatialObject( sphere );
+	binaryImageFilter->SetInput(  binarySphereGroup  );
+
+	sphere->SetDefaultInsideValue(   BinaryPixelOn );
+	sphere->SetDefaultOutsideValue(   BinaryPixelOff );
+
+	binaryImageFilter->SetUseObjectValue(true);
+	binaryImageFilter->SetOutsideValue( BinaryPixelOff );
+
+	binaryImageFilter->Update();
+	itkIm = binaryImageFilter->GetOutput();
+
+	//emit signal that data was modified
+	itkIm->Modified();
+	dynamic_cast<ConnectorData*>(getVTKConnector().get())->getConnector()->Modified();
+
+	/*	//define index and create point at position (x,y,z)
 	itk::ContinuousIndex< double, ImageDimension > idx;
 	ImageType::PointType point;
 	point[0] = x;point[1] = y;point[2] = z;
@@ -157,6 +203,7 @@ void BinaryImageTreeItem::drawSphere( float radius, float x, float y, float z, b
 	//emit signal that data was modified
 	itkIm->Modified();
 	dynamic_cast<ConnectorData*>(getVTKConnector().get())->getConnector()->Modified();
+	*/
 }
 
 //applies a regionGrow algorithm from a given seed with a specific threshold to the parent image
