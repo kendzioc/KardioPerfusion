@@ -26,9 +26,9 @@
 #include <boost/function.hpp>
 #include <boost/serialization/access.hpp>
 
-#include "itkSpatialObjectToImageFilter.h"
-#include "itkEllipseSpatialObject.h"
-#include "itkGroupSpatialObject.h"
+//#include "itkSpatialObjectToImageFilter.h"
+//#include "itkEllipseSpatialObject.h"
+//#include "itkGroupSpatialObject.h"
 
 /*! \class BinaryImageTreeItem BinaryImageTreeItem.h "BinaryImageTreeItem.h"
  *  \brief This is the representation of an image overlay which can be placed in a TreeView.
@@ -174,12 +174,12 @@ class BinaryImageTreeItem : public ITKVTKTreeItem< BinaryImageType > {
     template<class Archive>
     void serialize(Archive & ar, const unsigned int version);
 	
-	typedef itk::EllipseSpatialObject< ImageDimension >   EllipseType;
-	typedef itk::GroupSpatialObject< ImageDimension >     GroupType;
-	typedef itk::SpatialObjectToImageFilter< 
-    GroupType, BinaryImageType >   SpatialObjectToImageFilterType;
+//	typedef itk::EllipseSpatialObject< ImageDimension >   EllipseType;
+//	typedef itk::GroupSpatialObject< ImageDimension >     GroupType;
+//	typedef itk::SpatialObjectToImageFilter< 
+//    GroupType, BinaryImageType >   SpatialObjectToImageFilterType;
 
-	GroupType::Pointer binarySphereGroup;
+//	GroupType::Pointer binarySphereGroup;
 };
 
 

@@ -124,7 +124,7 @@
                </size>
               </property>
               <property name="minimum">
-               <number>5</number>
+               <number>1</number>
               </property>
               <property name="maximum">
                <number>50</number>

@@ -30,11 +30,13 @@
 #include <itkCannyEdgeDetectionImageFilter.h>
 #include <itkCastImageFilter.h>
 
+#include "itkImageFileWriter.h"
+
 #include <QMessageBox>
 
 // Constructor, which takes its parent, an Image and a name
 BinaryImageTreeItem::BinaryImageTreeItem(TreeItem * parent, ImageType::Pointer itkImage, const QString &name)
-  :BaseClass(parent, itkImage), name(name), volumeMtime(0), binarySphereGroup(GroupType::New()) {
+  :BaseClass(parent, itkImage), name(name), volumeMtime(0)/*, binarySphereGroup(GroupType::New())*/ {
     imageKeeper = getVTKConnector();
     createRandomColor();
 }
@@ -88,7 +90,7 @@ inline T clip(T min, T val, T max) {
 //draws a sphere with a given radius at a specific position (or erases it)
 void BinaryImageTreeItem::drawSphere( float radius, float x, float y, float z, bool erase ) {
 
-	SpatialObjectToImageFilterType::Pointer binaryImageFilter =
+/*	SpatialObjectToImageFilterType::Pointer binaryImageFilter =
 		SpatialObjectToImageFilterType::New();
 
 	itk::ContinuousIndex< double, ImageDimension > idx;
@@ -108,12 +110,17 @@ void BinaryImageTreeItem::drawSphere( float radius, float x, float y, float z, b
 	binaryImageFilter->SetSpacing(spacing);
 
 	EllipseType::Pointer sphere = EllipseType::New();
-	sphere->SetRadius( radius );
+	EllipseType::ArrayType radiusArray;
+	radiusArray[0] = radius/spacing[0];
+	radiusArray[1] = radius/spacing[1];
+	radiusArray[2] = radius/spacing[2];
+
+	sphere->SetRadius(radiusArray);
 
 	typedef GroupType::TransformType TransformType;
 	TransformType::Pointer transform = TransformType::New();
 
-	transform->SetIdentity();
+//	transform->SetIdentity();
 	transform->SetCenter(idx);
 	
 	sphere->SetObjectToParentTransform( transform );
@@ -133,8 +140,8 @@ void BinaryImageTreeItem::drawSphere( float radius, float x, float y, float z, b
 	//emit signal that data was modified
 	itkIm->Modified();
 	dynamic_cast<ConnectorData*>(getVTKConnector().get())->getConnector()->Modified();
-
-	/*	//define index and create point at position (x,y,z)
+*/
+	//define index and create point at position (x,y,z)
 	itk::ContinuousIndex< double, ImageDimension > idx;
 	ImageType::PointType point;
 	point[0] = x;point[1] = y;point[2] = z;
@@ -148,6 +155,11 @@ void BinaryImageTreeItem::drawSphere( float radius, float x, float y, float z, b
 	ImageType::SpacingType spacing = itkIm->GetSpacing();
 	ImageType::SizeType size = itkIm->GetBufferedRegion().GetSize();
   
+	if(itkIm->GetBufferedRegion().IsInside(idx))
+		std::cout << "Index inside";
+	else 
+		std::cout << "Index outside";
+
 	long start[3],end[3];
 	ImageType::SizeType itSize;
 	ImageType::IndexType itIndex;
@@ -158,8 +170,10 @@ void BinaryImageTreeItem::drawSphere( float radius, float x, float y, float z, b
 		double iradius =  std::abs(radius/spacing[i]);
 		//calculate start, end, size and index
 		//use clip for border checking 
-		start[i]	= (int)(idx[i] - iradius); start[i] 	= clip<long>(0, start[i], size[i]);
-		end[i]	= (int)(idx[i] + iradius); end[i] 	= clip<long>(0, end[i], size[i]);
+		start[i]	= (int)(idx[i] - iradius); 
+		start[i] 	= clip<long>(0, start[i], size[i]);
+		end[i]	= (int)(idx[i] + iradius); 
+		end[i] 	= clip<long>(0, end[i], size[i]);
 		itSize[i] = end[i] - start[i];
 		itIndex[i] = start[i];
 	}
@@ -169,6 +183,7 @@ void BinaryImageTreeItem::drawSphere( float radius, float x, float y, float z, b
 	//set size and position
 	DrawRegion.SetSize( itSize );
 	DrawRegion.SetIndex( itIndex );
+
 	//create iterator for the region
 	typedef itk::ImageRegionIterator< ImageType > BinImageIterator;
 	BinImageIterator iterator = BinImageIterator( itkIm, DrawRegion );
@@ -187,8 +202,8 @@ void BinaryImageTreeItem::drawSphere( float radius, float x, float y, float z, b
 	if (erase) 
 		pixelVal = BinaryPixelOff;
 
-//	for(int lz = start[2]; lz < end[2]; ++lz) {
-	for(int lz = start[2]; lz <= end[2]; lz++) {
+
+	for(int lz = start[2]; lz < end[2]; ++lz) {
 		float sumz = (lz - idx[2]) * spacing[2]; sumz *= sumz;
 		for(int ly = start[1]; ly < end[1]; ++ly) {
 			float sumy = (ly - idx[1]) * spacing[1]; sumy *= sumy; sumy += sumz;
@@ -200,10 +215,26 @@ void BinaryImageTreeItem::drawSphere( float radius, float x, float y, float z, b
 			}
 		}
 	}
+	
+/*	typedef itk::ImageFileWriter< LabelImageType >  WriterType;
+	WriterType::Pointer writer = WriterType::New();
+	writer->SetFileName( "test.dcm" );
+	writer->SetInput(itkIm);
+	try 
+    { 
+    writer->Update(); 
+    } 
+  catch( itk::ExceptionObject & err ) 
+    { 
+    std::cerr << "ExceptionObject caught !" << std::endl; 
+    std::cerr << err << std::endl; 
+    return ;
+    } 
+*/
 	//emit signal that data was modified
 	itkIm->Modified();
 	dynamic_cast<ConnectorData*>(getVTKConnector().get())->getConnector()->Modified();
-	*/
+
 }
 
 //applies a regionGrow algorithm from a given seed with a specific threshold to the parent image
@@ -256,6 +287,22 @@ void BinaryImageTreeItem::regionGrow( float x, float y, float z, int threshold, 
 	ImageType::Pointer result = filter->GetOutput();
 	//set the result as actual segment
 	setITKImage( result );
+
+	typedef itk::ImageFileWriter< LabelImageType >  WriterType;
+	WriterType::Pointer writer = WriterType::New();
+	writer->SetFileName( "test.dcm" );
+	writer->SetInput(result);
+	try 
+    { 
+    writer->Update(); 
+    } 
+  catch( itk::ExceptionObject & err ) 
+    { 
+    std::cerr << "ExceptionObject caught !" << std::endl; 
+    std::cerr << err << std::endl; 
+    return ;
+    } 
+
 	clearAction();
 	//} else {
 	//  QMessageBox::information(0,QObject::tr("Region Grow Error"),QObject::tr("Click on a part of the segmentation"));
